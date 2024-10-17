@@ -9,11 +9,13 @@
 // except according to those terms.
 
 use crate::default::{F32x4, I32x4, U32x4};
-use crate::scalar::F32x4 as F32x4S;
+use crate::scalar::{self, F32x4 as F32x4S};
+use crate::wasm::{F32x2, I32x2, U32x2};
+use wasm_bindgen_test::*;
 
 // F32x4
 
-#[test]
+#[wasm_bindgen_test]
 fn test_f32x4_constructors() {
     let a = F32x4::new(1.0, 2.0, 3.0, 4.0);
     assert_eq!((a[0], a[1], a[2], a[3]), (1.0, 2.0, 3.0, 4.0));
@@ -21,7 +23,7 @@ fn test_f32x4_constructors() {
     assert_eq!(b, F32x4::new(10.0, 10.0, 10.0, 10.0));
 }
 
-#[test]
+#[wasm_bindgen_test]
 fn test_f32x4_accessors_and_mutators() {
     let a = F32x4::new(5.0, 6.0, 7.0, 8.0);
     assert_eq!((a.x(), a.y(), a.z(), a.w()), (5.0, 6.0, 7.0, 8.0));
@@ -31,13 +33,26 @@ fn test_f32x4_accessors_and_mutators() {
     b.set_z(40.0);
     b.set_w(50.0);
     assert_eq!(b, F32x4::new(20.0, 30.0, 40.0, 50.0));
+    assert_eq!(a.xy(), F32x2::new(5.0, 6.0));
 }
 
-#[test]
+#[wasm_bindgen_test]
 fn test_f32x4_basic_ops() {
     let a = F32x4::new(1.0, 3.0, 5.0, 7.0);
     let b = F32x4::new(2.0, 2.0, 6.0, 6.0);
-    assert_eq!(a.approx_recip(), F32x4::new(0.99975586, 0.333313, 0.19995117, 0.14282227));
+    // WASM is more accurate
+    assert_eq!(
+        a.approx_recip(),
+        F32x4::new(1.0, 0.33333334, 0.2, 0.14285715)
+    );
+    assert_eq!(
+        a.approx_recip().xy(),
+        F32x2::new(1.0, 0.33333334)
+    );
+    assert_eq!(a[0], 1.0);
+    assert_eq!(a[1], 3.0);
+    assert_eq!(a[2], 5.0);
+    assert_eq!(a[3], 7.0);
     assert_eq!(a.min(b), F32x4::new(1.0, 2.0, 5.0, 6.0));
     assert_eq!(a.max(b), F32x4::new(2.0, 3.0, 6.0, 7.0));
     let c = F32x4::new(-1.0, 1.3, -20.0, 3.6);
@@ -50,16 +65,29 @@ fn test_f32x4_basic_ops() {
     assert_eq!(d.sqrt(), F32x4::new(1.0, 1.4142135, 1.7320508, 2.0));
 }
 
-#[test]
+#[wasm_bindgen_test]
 fn test_f32x4_packed_comparisons() {
     let a = F32x4::new(7.0, 3.0, 6.0, -2.0);
     let b = F32x4::new(10.0, 3.0, 5.0, -2.0);
-    assert_eq!(a.packed_eq(b), U32x4::new(0, !0, 0, !0));
-    assert_eq!(a.packed_gt(b), U32x4::new(0, 0, !0, 0));
-    assert_eq!(a.packed_le(b), U32x4::new(!0, !0, 0, !0));
+
+    let a_eq_b = a.packed_eq(b);
+    let a_gt_b = a.packed_gt(b);
+    let a_le_b = a.packed_le(b);
+
+    assert_eq!(a_eq_b, U32x4::new(0, !0, 0, !0));
+    assert_eq!(a_gt_b, U32x4::new(0, 0, !0, 0));
+    assert_eq!(a_le_b, U32x4::new(!0, !0, 0, !0));
+
+    assert_eq!(a_eq_b.all_true(), false);
+    assert_eq!(a_gt_b.all_true(), false);
+    assert_eq!(a_le_b.all_true(), false);
+
+    let c = F32x4::splat(1.);
+    let d = F32x4::splat(0.);
+    assert_eq!(c.packed_eq(c).all_true(), true);
 }
 
-#[test]
+#[wasm_bindgen_test]
 fn test_f32x4_swizzles() {
     let a = F32x4::new(1.0, 2.0, 3.0, 4.0);
     assert_eq!(a.xxxx(), F32x4::splat(1.0));
@@ -324,7 +352,7 @@ fn test_f32x4_swizzles() {
     assert_eq!(a.wwwz(), F32x4::new(4.0, 4.0, 4.0, 3.0));
 }
 
-#[test]
+#[wasm_bindgen_test]
 fn test_f32x4_concatenations() {
     let a = F32x4::new(4.0, 2.0, 6.0, -1.0);
     let b = F32x4::new(10.0, -3.0, 15.0, 41.0);
@@ -334,7 +362,7 @@ fn test_f32x4_concatenations() {
     assert_eq!(a.concat_wz_yx(b), F32x4::new(-1.0, 6.0, -3.0, 10.0));
 }
 
-#[test]
+#[wasm_bindgen_test]
 fn test_f32x4_arithmetic_overloads() {
     let a = F32x4::new(4.0, -1.0, 6.0, -32.0);
     let b = F32x4::new(0.5, 0.5, 10.0, 3.0);
@@ -356,7 +384,7 @@ fn test_f32x4_arithmetic_overloads() {
     assert_eq!(-a, F32x4::new(-4.0, 1.0, -6.0, 32.0));
 }
 
-#[test]
+#[wasm_bindgen_test]
 fn test_f32x4_index_overloads() {
     let mut a = F32x4::new(4.0, 1.0, -32.5, 75.0);
     assert_eq!(a[2], -32.5);
@@ -366,13 +394,13 @@ fn test_f32x4_index_overloads() {
     assert_eq!(a[0], 2.0);
 }
 
-#[test]
+#[wasm_bindgen_test]
 fn test_f32x4_conversions() {
     let a = F32x4::new(48.0, -4.0, 200.0, 7.0);
     assert_eq!(a.to_i32x4(), I32x4::new(48, -4, 200, 7));
 }
 
-#[test]
+#[wasm_bindgen_test]
 fn test_f32x4_debug() {
     let a = F32x4::new(48.0, -4.0, 200.0, 7.0);
     assert_eq!("<48, -4, 200, 7>", format!("{:?}", a));
@@ -380,7 +408,7 @@ fn test_f32x4_debug() {
 
 // I32x4
 
-#[test]
+#[wasm_bindgen_test]
 fn test_i32x4_constructors() {
     let a = I32x4::new(3, 58, 10, 4);
     assert_eq!((a[0], a[1], a[2], a[3]), (3, 58, 10, 4));
@@ -388,21 +416,21 @@ fn test_i32x4_constructors() {
     assert_eq!(b, I32x4::new(39, 39, 39, 39));
 }
 
-#[test]
+#[wasm_bindgen_test]
 fn test_i32x4_basic_ops() {
     let a = I32x4::new(6, 29, -40, 2);
     let b = I32x4::new(10, -5, 10, 46);
     assert_eq!(a.min(b), I32x4::new(6, -5, -40, 2));
 }
 
-#[test]
+#[wasm_bindgen_test]
 fn test_i32x4_packed_comparisons() {
     let a = I32x4::new(59, 1, 5, 63);
     let b = I32x4::new(-59, 1, 5, 104);
     assert_eq!(a.packed_eq(b), U32x4::new(0, !0, !0, 0));
 }
 
-#[test]
+#[wasm_bindgen_test]
 fn test_i32x4_swizzles() {
     let a = I32x4::new(1, 2, 3, 4);
     assert_eq!(a.xxxx(), I32x4::splat(1));
@@ -669,7 +697,7 @@ fn test_i32x4_swizzles() {
 
 // Scalar F32x4
 
-#[test]
+#[wasm_bindgen_test]
 fn test_f32x4s_constructors() {
     let a = F32x4S::new(1.0, 2.0, 3.0, 4.0);
     assert_eq!((a[0], a[1], a[2], a[3]), (1.0, 2.0, 3.0, 4.0));
@@ -677,7 +705,7 @@ fn test_f32x4s_constructors() {
     assert_eq!(b, F32x4S::new(10.0, 10.0, 10.0, 10.0));
 }
 
-#[test]
+#[wasm_bindgen_test]
 fn test_f32x4s_basic_ops() {
     let a = F32x4S::new(1.0, 3.0, 5.0, 7.0);
     let b = F32x4S::new(2.0, 2.0, 6.0, 6.0);
@@ -688,4 +716,221 @@ fn test_f32x4s_basic_ops() {
     assert_eq!(c.floor(), F32x4S::new(-1.0, 1.0, -20.0, 3.0));
     assert_eq!(c.ceil(), F32x4S::new(-1.0, 2.0, -20.0, 4.0));
     assert_eq!(c.to_i32x4().to_f32x4(), F32x4S::new(-1.0, 1.0, -20.0, 4.0));
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::wasm::{I32x2, U32x2};
+
+    use super::*;
+    use wasm_bindgen_test::*;
+
+    // F32x2
+
+    #[wasm_bindgen_test]
+    fn test_f32x2_constructors() {
+        let a = F32x2::new(1.0, 2.0);
+        assert_eq!((a[0], a[1]), (1.0, 2.0));
+        let b = F32x2::splat(10.0);
+        assert_eq!(b, F32x2::new(10.0, 10.0));
+    }
+
+    #[wasm_bindgen_test]
+    fn test_f32x2_basic_ops() {
+        let a = F32x2::new(1.0, 3.0);
+        let b = F32x2::new(2.0, 2.0);
+        assert_eq!(a.approx_recip(), F32x2::new(1.0, 0.33333334));
+        assert_eq!(a.min(b), F32x2::new(1.0, 2.0));
+        assert_eq!(a.max(b), F32x2::new(2.0, 3.0));
+        let c = F32x2::new(-1.0, 1.3);
+        assert_eq!(c.clamp(a, b), F32x2::new(1.0, 2.0));
+        assert_eq!(c.abs(), F32x2::new(1.0, 1.3));
+        assert_eq!(c.floor(), F32x2::new(-1.0, 1.0));
+        assert_eq!(c.ceil(), F32x2::new(-1.0, 2.0));
+    }
+
+    #[wasm_bindgen_test]
+    fn test_f32x2_packed_comparisons() {
+        let a = F32x2::new(7.0, 3.0);
+        let b = F32x2::new(10.0, 3.0);
+
+        let a_eq_b = a.packed_eq(b);
+        let a_gt_b = a.packed_gt(b);
+        let a_le_b = a.packed_le(b);
+
+        assert_eq!(a_eq_b, U32x2::new(0, !0));
+        assert_eq!(a_gt_b, U32x2::new(0, 0));
+        assert_eq!(a_le_b, U32x2::new(!0, !0));
+
+        let c = F32x2::splat(1.0);
+        assert_eq!(c.packed_eq(c).all_true(), true);
+    }
+
+    #[wasm_bindgen_test]
+    fn test_f32x2_arithmetic_overloads() {
+        let a = F32x2::new(4.0, -1.0);
+        let b = F32x2::new(0.5, 0.5);
+        let a_plus_b = F32x2::new(4.5, -0.5);
+        let a_minus_b = F32x2::new(3.5, -1.5);
+        let a_times_b = F32x2::new(2.0, -0.5);
+        let a_div_b = F32x2::new(8.0, -2.0);
+
+        assert_eq!(a + b, a_plus_b);
+        assert_eq!(a - b, a_minus_b);
+        assert_eq!(a * b, a_times_b);
+        assert_eq!(a / b, a_div_b);
+
+        let mut c = a;
+        c += b;
+        assert_eq!(c, a_plus_b);
+        c = a;
+        c -= b;
+        assert_eq!(c, a_minus_b);
+        c = a;
+        c *= b;
+        assert_eq!(c, a_times_b);
+        c = a;
+        c = c / b;
+        assert_eq!(c, a_div_b);
+    }
+
+    #[wasm_bindgen_test]
+    fn test_f32x2_index_overloads() {
+        let mut a = F32x2::new(4.0, 1.0);
+        assert_eq!(a[1], 1.0);
+        a[1] = 300.0;
+        assert_eq!(a[1], 300.0);
+        a[0] *= 0.5;
+        assert_eq!(a[0], 2.0);
+    }
+
+    #[wasm_bindgen_test]
+    fn test_f32x2_conversions() {
+        let a = F32x2::new(48.0, -4.0);
+        assert_eq!(a.to_i32x2(), I32x2::new(48, -4));
+    }
+
+    #[wasm_bindgen_test]
+    fn test_f32x2_debug() {
+        let a = F32x2::new(48.0, -4.0);
+        assert_eq!("<48, -4>", format!("{:?}", a));
+    }
+
+    #[wasm_bindgen_test]
+    fn test_f32x2_swizzle() {
+        let a = F32x2::new(1.0, 2.0);
+        assert_eq!(a.yx(), F32x2::new(2.0, 1.0));
+    }
+
+    #[wasm_bindgen_test]
+    fn test_f32x2_concatenations() {
+        let a = F32x2::new(4.0, 2.0);
+        let b = F32x2::new(10.0, -3.0);
+        assert_eq!(a.concat_xy_xy(b), F32x4::new(4.0, 2.0, 10.0, -3.0));
+    }
+
+    #[wasm_bindgen_test]
+    fn test_f32x2_to_scalar_tests() {
+        let a = F32x2::new(4.0, 2.0);
+        let b = F32x2::new(10.0, -3.0);
+        assert_eq!(a.concat_xy_xy(b), F32x4::new(4.0, 2.0, 10.0, -3.0));
+    }
+
+    #[wasm_bindgen_test]
+    fn test_wasm_to_scalar() {
+        let mut b_wasm = F32x4::new(4.0, 2.0, 10.0, -3.0);
+        let mut b_scalar = scalar::F32x4::new(4.0, 2.0, 10.0, -3.0);
+
+        for _ in 0..1000 {
+            let x = fastrand::f32();
+            let y = fastrand::f32();
+
+            let a_wasm = F32x2::new(x, y);
+            let a_scalar = scalar::F32x2::new(x, y);
+
+            f32x2_equals(a_wasm.abs(), a_scalar.abs());
+            f32x2_equals(a_wasm.ceil(), a_scalar.ceil());
+            f32x2_equals(a_wasm.floor(), a_scalar.floor());
+            f32x2_equals(a_wasm.approx_recip(), a_scalar.approx_recip());
+            f32x2_equals(a_wasm.sqrt(), a_scalar.sqrt());
+            f32x2_equals(a_wasm.to_i32x2().to_f32x2(), a_scalar.to_i32x2().to_f32x2());
+
+            let x = fastrand::f32();
+            let y = fastrand::f32();
+
+            let b_wasm = F32x2::new(x, y);
+            let b_scalar = scalar::F32x2::new(x, y);
+
+            f32x2_equals(a_wasm.min(b_wasm), a_scalar.min(b_scalar));
+            f32x2_equals(a_wasm.max(b_wasm), a_scalar.max(b_scalar));
+
+            u32x2_equals(a_wasm.packed_eq(b_wasm), a_scalar.packed_eq(b_scalar));
+            u32x2_equals(a_wasm.packed_gt(b_wasm), a_scalar.packed_gt(b_scalar));
+            u32x2_equals(a_wasm.packed_le(b_wasm), a_scalar.packed_le(b_scalar));
+
+            let a64_wasm = a_wasm.concat_xy_xy(b_wasm);
+            let a64_scalar = a_scalar.concat_xy_xy(b_scalar);
+
+            f32x4_equals(a64_wasm.abs(), a64_scalar.abs());
+            f32x4_equals(a64_wasm.ceil(), a64_scalar.ceil());
+            f32x4_equals(a64_wasm.floor(), a64_scalar.floor());
+            f32x4_equals(a64_wasm.approx_recip(), a64_scalar.approx_recip());
+            f32x4_equals(a64_wasm.sqrt(), a64_scalar.sqrt());
+            f32x4_equals(a64_wasm.to_i32x4().to_f32x4(), a64_scalar.to_i32x4().to_f32x4());
+
+            let x = fastrand::f32();
+            let y = fastrand::f32();
+            let z = fastrand::f32();
+            let w = fastrand::f32();
+
+            let c_wasm = F32x4::new(x, y, z, w);
+            let c_scalar = scalar::F32x4::new(x, y, z, w);
+
+            f32x4_equals(c_wasm.abs(), c_scalar.abs());
+            f32x4_equals(c_wasm.ceil(), c_scalar.ceil());
+            f32x4_equals(c_wasm.floor(), c_scalar.floor());
+            f32x4_equals(c_wasm.approx_recip(), c_scalar.approx_recip());
+            f32x4_equals(c_wasm.sqrt(), c_scalar.sqrt());
+            f32x4_equals(c_wasm.to_i32x4().to_f32x4(), c_scalar.to_i32x4().to_f32x4());
+            f32x2_equals(c_wasm.to_i32x4().to_f32x4().xy(), c_scalar.to_i32x4().to_f32x4().xy());
+        }
+    }
+
+}
+
+
+fn f32x2_equals(a: F32x2, b: scalar::F32x2) {
+    assert_eq!(a[0], b[0]);
+    assert_eq!(a[1], b[1]);
+}
+
+fn f32x4_equals(a: F32x4, b: scalar::F32x4) {
+    assert_eq!(a[0], b[0]);
+    assert_eq!(a[1], b[1]);
+    assert_eq!(a[2], b[2]);
+    assert_eq!(a[3], b[3]);
+}
+
+fn u32x2_equals(a: U32x2, b: scalar::U32x2) {
+    assert_eq!(a[0], b[0]);
+    assert_eq!(a[1], b[1]);
+}
+
+fn u32x4_equals(a: U32x4, b: scalar::U32x4) {
+    assert_eq!(a[0], b[0]);
+    assert_eq!(a[1], b[1]);
+    assert_eq!(a[2], b[2]);
+    assert_eq!(a[3], b[3]);
+}
+
+fn i32x2_equals(a: I32x2, b: scalar::I32x2) {
+    assert_eq!(a[0], b[0]);
+    assert_eq!(a[1], b[1]);
+}
+
+fn i32x4_equals(a: I32x4, b: scalar::I32x4) {
+    assert_eq!(a[0], b[0]);
+    assert_eq!(a[1], b[1]);
+    assert_eq!(a[2], b[2]);
+    assert_eq!(a[3], b[3]);
 }
